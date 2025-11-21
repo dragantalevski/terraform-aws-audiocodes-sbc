@@ -6,18 +6,19 @@ variable "vpc_id" {
 variable "instance_type" {
   description = "Recommended instance types: m5n.xlarge for media forwarding; c5n.2xlarge or c5n.9xlarge for transcoding."
   type        = string
+  default = "m5.xlarge"
 }
 
 variable "ac_sbc_instance_profile_name" {
   description = "Name of existing IAM role that allows SBC to manage its IP addresses."
   type        = string
-  default = ""
+  default = null
 }
 
 variable "ac_sbc_key" {
   description = "Name of existing Key Pair used for securing access to the SSH interface."
   type = string
-  default = ""
+  default = null
 }
 
 variable "ac_sbc_image_id" {
@@ -28,42 +29,66 @@ variable "ac_sbc_eth0_subnet_id" {
   description = "Subnet ID of existing Subnet in your VPC. Must provide access to the EC2 API endpoint via private IP addresses - refer to https://www.audiocodes.com/media/15887/mediant-virtual-edition-sbc-for-amazon-aws-installation-manual-ver-74.pdf for details. The subnet is used for HA traffic between two SBC instances and for accessing EC2 API during switchover. It is attached the the 1st network interface (eth0)."
   type = string 
 }
-variable "ac_sbc1_eth0_ip" { type = string }
-variable "ac_sbc2_eth0_ip" { type = string }
+variable "ac_sbc1_eth0_ip" {
+  type = string
+  default = null
+}
+variable "ac_sbc2_eth0_ip" {
+  type = string
+  default = null
+}
 
 variable "ac_sbc_eth1_subnet_id" {
   description = "Subnet ID of existing Subnet in your VPC. The subnet may be used for Management traffic (HTTP, SSH). It is attached the the 2nd network interface (eth1)."
   type = string 
 }
-variable "ac_sbc_eth1_ip" { type = string }
-variable "ac_sbc1_eth1_ip" { type = string }
-variable "ac_sbc2_eth1_ip" { type = string }
+variable "ac_sbc_eth1_ip" {
+  type = string
+  default = null
+}
+variable "ac_sbc1_eth1_ip" {
+  type = string 
+  default = null
+}
+variable "ac_sbc2_eth1_ip" {
+  type = string
+  default = null
+}
 
 variable "ac_sbc_eth2_subnet_id" {
   description = "Subnet ID of existing Subnet in your VPC. The subnet may be used for Internal VoIP traffic (SIP, RTP, RTCP)."
   type = string 
 }
-variable "ac_sbc_eth2_ip" { type = string }
-variable "ac_sbc1_eth2_ip" { type = string }
-variable "ac_sbc2_eth2_ip" { type = string }
+variable "ac_sbc_eth2_ip" {
+  type = string
+  default = null
+}
+variable "ac_sbc1_eth2_ip" {
+  type = string
+  default = null
+}
+variable "ac_sbc2_eth2_ip" {
+  type = string
+  default = null
+}
 
 
 variable "ac_sbc_eth3_subnet_id" {
   description = "Subnet ID of existing Subnet in your VPC. The subnet may be used for External (Outside) VoIP traffic (SIP, RTP, RTCP). It is attached the the 4th network interface (eth3)."
   type    = string
-  default = ""
+  default = null
 }
 variable "ac_sbc_eth3_ip" {
   type    = string
-  default = ""
+  default = null
 }
 variable "ac_sbc1_eth3_ip" {
   type    = string
-  default = ""
+  default = null
 }
 variable "ac_sbc2_eth3_ip" {
   type    = string
-  default = ""
+  default = null
 }
 
 variable "ac_sbc_eth3_enable" {
@@ -80,7 +105,7 @@ variable "ac_sbc_eth3_public_enable" {
 variable "ac_sbc_eth3_public_ip" {
   description = "Reference to Public IP Address (EIP). Public IP is created outside of this module. If ac_sbc_eth3_public_enable is set to true, and ac_sbc_eth3_public_ip is not set, the EIP will be created automatically."
   type    = string
-  default = ""
+  default = null
 }
 
 variable "public_ip_name" {
@@ -100,7 +125,10 @@ variable "public_ip_name" {
 variable "root_ebs" {
   type        = list(map(string))
   description = "Customize ebs volume"
-  default     = []
+  default     = [{
+    "volume_size" : 30,
+   "volume_type": "gp3"
+   }]
 }
 
 variable "tags" {
@@ -116,8 +144,8 @@ variable "ec2_name" {
 variable "ec2_endpoint" {
   description = "HA Subnet needs VPC EC2 endpoint to access the AWS API"
   type = string
+  default = null
 }
-
 
 variable "voip_external_ingress_rules" {
   description = "List of ingress rules for Outisde VoIP Security Group"
