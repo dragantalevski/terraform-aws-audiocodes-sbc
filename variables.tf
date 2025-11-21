@@ -108,11 +108,6 @@ variable "ac_sbc_eth3_public_ip" {
   default = null
 }
 
-variable "public_ip_name" {
-  description = "Name tag for the EIP"
-  type        = string
-
-}
 
 # variable "ac_sbc_eth4_subnet_id" { type = string }
 # variable "ac_sbc_eth4_ip" { type = string }
