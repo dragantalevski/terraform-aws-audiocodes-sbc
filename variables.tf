@@ -12,13 +12,11 @@ variable "instance_type" {
 variable "ac_sbc_instance_profile_name" {
   description = "Name of existing IAM role that allows SBC to manage its IP addresses."
   type        = string
-  default = null
 }
 
 variable "ac_sbc_key" {
   description = "Name of existing Key Pair used for securing access to the SSH interface."
   type = string
-  default = null
 }
 
 variable "ac_sbc_image_id" {
@@ -30,12 +28,14 @@ variable "ac_sbc_eth0_subnet_id" {
   type = string 
 }
 variable "ac_sbc1_eth0_ip" {
+  description = "Primary IP address for Active SBC interface (eth0)."
   type = string
-  default = null
+  default = ""
 }
 variable "ac_sbc2_eth0_ip" {
+  description = "Primary IP address for Stand-by SBC interface (eth0)."
   type = string
-  default = null
+  default = ""
 }
 
 variable "ac_sbc_eth1_subnet_id" {
@@ -43,16 +43,19 @@ variable "ac_sbc_eth1_subnet_id" {
   type = string 
 }
 variable "ac_sbc_eth1_ip" {
+  description = "Secondary Shared IP address for interface (eth1)"
   type = string
-  default = null
+  default = ""
 }
 variable "ac_sbc1_eth1_ip" {
+  description = "Primary IP address for Active SBC interface (eth1). Not used"
   type = string 
-  default = null
+  default = ""
 }
 variable "ac_sbc2_eth1_ip" {
+  description = "Primary IP address for Stand-by SBC interface (eth1). Not used"
   type = string
-  default = null
+  default = ""
 }
 
 variable "ac_sbc_eth2_subnet_id" {
@@ -60,35 +63,40 @@ variable "ac_sbc_eth2_subnet_id" {
   type = string 
 }
 variable "ac_sbc_eth2_ip" {
+  description = "Secondary Shared IP address for interface (eth2)"
   type = string
-  default = null
+  default = ""
 }
 variable "ac_sbc1_eth2_ip" {
+  description = "Primary IP address for Active SBC interface (eth2). Not used"  
   type = string
-  default = null
+  default = ""
 }
 variable "ac_sbc2_eth2_ip" {
+  description = "Primary IP address for Stand-by SBC interface (eth2). Not used"
   type = string
-  default = null
+  default = ""
 }
-
 
 variable "ac_sbc_eth3_subnet_id" {
   description = "Subnet ID of existing Subnet in your VPC. The subnet may be used for External (Outside) VoIP traffic (SIP, RTP, RTCP). It is attached the the 4th network interface (eth3)."
   type    = string
-  default = null
+  default = ""
 }
 variable "ac_sbc_eth3_ip" {
+  description = "Secondary Shared IP address for interface (eth3)"
   type    = string
-  default = null
+  default = ""
 }
 variable "ac_sbc1_eth3_ip" {
+  description = "Primary IP address for Active SBC interface (eth3). Not used"
   type    = string
-  default = null
+  default = ""
 }
 variable "ac_sbc2_eth3_ip" {
+  description = "Primary IP address for Stand-by SBC interface (eth3). Not used"
   type    = string
-  default = null
+  default = ""
 }
 
 variable "ac_sbc_eth3_enable" {
@@ -105,7 +113,7 @@ variable "ac_sbc_eth3_public_enable" {
 variable "ac_sbc_eth3_public_ip" {
   description = "Reference to Public IP Address (EIP). Public IP is created outside of this module. If ac_sbc_eth3_public_enable is set to true, and ac_sbc_eth3_public_ip is not set, the EIP will be created automatically."
   type    = string
-  default = null
+  default = ""
 }
 
 
@@ -121,8 +129,8 @@ variable "root_ebs" {
   type        = list(map(string))
   description = "Customize ebs volume"
   default     = [{
-    "volume_size" : 30,
-   "volume_type": "gp3"
+    "volume_type" = "gp3"
+    "volume_size" = 50
    }]
 }
 
@@ -139,7 +147,7 @@ variable "ec2_name" {
 variable "ec2_endpoint" {
   description = "HA Subnet needs VPC EC2 endpoint to access the AWS API"
   type = string
-  default = null
+  default = ""
 }
 
 variable "voip_external_ingress_rules" {

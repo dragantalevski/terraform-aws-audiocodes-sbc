@@ -21,7 +21,7 @@ resource "aws_instance" "ac_sbc1" {
   key_name             = var.ac_sbc_key
   iam_instance_profile = var.ac_sbc_instance_profile_name
   primary_network_interface {
-    network_interface_id = aws_network_interface.ac_sbc1_eth0.id
+    network_interface_id = var.ac_sbc1_eth0_ip == "" ? aws_network_interface.ac_sbc1_eth0_dhcp[0].id : aws_network_interface.ac_sbc1_eth0_static[0].id
   }
   metadata_options {
     http_endpoint               = "enabled"
@@ -54,7 +54,7 @@ resource "aws_instance" "ac_sbc1" {
   user_data_base64 = base64encode(
     join("\n", [
       "#ini-file",
-      "HARemoteAddress = '${aws_network_interface.ac_sbc2_eth0.private_ip}'",
+      "HARemoteAddress = '${var.ac_sbc2_eth0_ip == "" ? aws_network_interface.ac_sbc2_eth0_dhcp[0].private_ip : aws_network_interface.ac_sbc2_eth0_static[0].private_ip}'",
       "HAPriority = 2",
       "HAUnitIdName = '${var.ec2_name}a'",
       "#network_layout=2",
@@ -73,8 +73,25 @@ resource "aws_instance" "ac_sbc1" {
   }
 }
 
-resource "aws_network_interface" "ac_sbc1_eth0" {
-  subnet_id         = var.ac_sbc_eth0_subnet_id
+
+# Eth0 DHCP-based ENI (no declared IPs)
+resource "aws_network_interface" "ac_sbc1_eth0_dhcp" {
+  count    = var.ac_sbc1_eth0_ip == "" ? 1 : 0
+  subnet_id = var.ac_sbc_eth0_subnet_id
+  security_groups   = [aws_security_group.sg_ac_sbc_ha.id]
+  source_dest_check = true
+  lifecycle {
+    ignore_changes = [private_ips]
+  }
+  tags = {
+    Name = "interface_${var.ec2_name}a_eth0"
+  }
+}
+
+# Eth0 Static-IP ENI (IP declared)
+resource "aws_network_interface" "ac_sbc1_eth0_static" {
+  count    = var.ac_sbc1_eth0_ip != "" ? 1 : 0
+  subnet_id = var.ac_sbc_eth0_subnet_id
   private_ips       = [var.ac_sbc1_eth0_ip]
   security_groups   = [aws_security_group.sg_ac_sbc_ha.id]
   source_dest_check = true
@@ -83,55 +100,115 @@ resource "aws_network_interface" "ac_sbc1_eth0" {
   }
 }
 
-resource "aws_network_interface" "ac_sbc1_eth1" {
-  subnet_id               = var.ac_sbc_eth1_subnet_id
-  private_ip_list_enabled = true
-  private_ip_list         = [var.ac_sbc1_eth1_ip, var.ac_sbc_eth1_ip]
-  security_groups         = [aws_security_group.sg_ac_sbc_oam.id]
-  source_dest_check       = true
+
+# Eth1 DHCP-based ENI (no declared IPs)
+resource "aws_network_interface" "ac_sbc1_eth1_dhcp" {
+  count    = (var.ac_sbc1_eth1_ip == "" && var.ac_sbc_eth1_ip == "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth1_subnet_id
+  private_ips_count = 1
+  security_groups   = [aws_security_group.sg_ac_sbc_oam.id]
+  source_dest_check = true
+  lifecycle {
+    ignore_changes = [private_ips]
+  }
   tags = {
-    Name   = "interface_${var.ec2_name}a_eth1"
+    Name = "interface_${var.ec2_name}a_eth1"
   }
 }
+
+
+# Eth1 Static-IP ENI (both IPs declared)
+resource "aws_network_interface" "ac_sbc1_eth1_static" {
+  count    = (var.ac_sbc1_eth1_ip != "" && var.ac_sbc_eth1_ip != "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth1_subnet_id
+  private_ip_list_enabled = true
+  private_ip_list = [var.ac_sbc1_eth1_ip, var.ac_sbc_eth1_ip]
+  security_groups   = [aws_security_group.sg_ac_sbc_oam.id]
+  source_dest_check = true
+  tags = {
+    Name = "interface_${var.ec2_name}a_eth1"
+  }
+}
+
 resource "aws_network_interface_attachment" "ac_sbc1_eth1" {
   instance_id          = aws_instance.ac_sbc1.id
-  network_interface_id = aws_network_interface.ac_sbc1_eth1.id
+  network_interface_id = (var.ac_sbc1_eth1_ip == "" && var.ac_sbc_eth1_ip == "") ? aws_network_interface.ac_sbc1_eth1_dhcp[0].id : aws_network_interface.ac_sbc1_eth1_static[0].id
   device_index         = 1
 }
 
-resource "aws_network_interface" "ac_sbc1_eth2" {
-  subnet_id               = var.ac_sbc_eth2_subnet_id
-  private_ip_list_enabled = true
-  private_ip_list         = [var.ac_sbc1_eth2_ip, var.ac_sbc_eth2_ip]
-  security_groups         = [aws_security_group.sg_ac_sbc_voip_internal.id]
-  source_dest_check       = true
+
+
+# Eth2 DHCP-based ENI (no declared IPs)
+resource "aws_network_interface" "ac_sbc1_eth2_dhcp" {
+  count    = (var.ac_sbc1_eth2_ip == "" && var.ac_sbc_eth2_ip == "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth2_subnet_id
+  private_ips_count = 1
+  security_groups   = [aws_security_group.sg_ac_sbc_voip_internal.id]
+  source_dest_check = true
+  lifecycle {
+    ignore_changes = [private_ips]
+  }
   tags = {
-    Name   = "interface_${var.ec2_name}a_eth2"
+    Name = "interface_${var.ec2_name}a_eth2"
   }
 }
+
+
+# Eth2 Static-IP ENI (both IPs declared)
+resource "aws_network_interface" "ac_sbc1_eth2_static" {
+  count    = (var.ac_sbc1_eth2_ip != "" && var.ac_sbc_eth2_ip != "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth2_subnet_id
+  private_ip_list_enabled = true
+  private_ip_list = [var.ac_sbc1_eth2_ip, var.ac_sbc_eth2_ip]
+  security_groups   = [aws_security_group.sg_ac_sbc_voip_internal.id]
+  source_dest_check = true
+  tags = {
+    Name = "interface_${var.ec2_name}a_eth2"
+  }
+}
+
 resource "aws_network_interface_attachment" "ac_sbc1_eth2" {
   instance_id          = aws_instance.ac_sbc1.id
-  network_interface_id = aws_network_interface.ac_sbc1_eth2.id
+  network_interface_id = (var.ac_sbc1_eth2_ip == "" && var.ac_sbc_eth2_ip == "") ? aws_network_interface.ac_sbc1_eth2_dhcp[0].id : aws_network_interface.ac_sbc1_eth2_static[0].id
   device_index         = 2
 }
 
-resource "aws_network_interface" "ac_sbc1_eth3" {
-  count                   = var.ac_sbc_eth3_enable ? 1 : 0
-  subnet_id               = var.ac_sbc_eth3_subnet_id
-  private_ip_list_enabled = true
-  private_ip_list         = [var.ac_sbc1_eth3_ip, var.ac_sbc_eth3_ip]
-  security_groups         = [aws_security_group.sg_ac_sbc_voip_external[0].id]
-  source_dest_check       = true
+
+# Eth3 DHCP-based ENI (no declared IPs)
+resource "aws_network_interface" "ac_sbc1_eth3_dhcp" {
+  count    = (var.ac_sbc_eth3_enable == true && var.ac_sbc1_eth3_ip == "" && var.ac_sbc_eth3_ip == "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth3_subnet_id
+  private_ips_count = 1
+  security_groups   = [aws_security_group.sg_ac_sbc_voip_external[0].id]
+  source_dest_check = true
+  lifecycle {
+    ignore_changes = [private_ips]
+  }
   tags = {
     Name = "interface_${var.ec2_name}a_eth3"
   }
 }
+
+# Eth3 Static-IP ENI (both IPs declared)
+resource "aws_network_interface" "ac_sbc1_eth3_static" {
+  count    = (var.ac_sbc_eth3_enable == true && var.ac_sbc1_eth3_ip != "" && var.ac_sbc_eth3_ip != "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth3_subnet_id
+  private_ip_list_enabled = true
+  private_ip_list = [var.ac_sbc1_eth3_ip, var.ac_sbc_eth3_ip]
+  security_groups   = [aws_security_group.sg_ac_sbc_voip_external[0].id]
+  source_dest_check = true
+  tags = {
+    Name = "interface_${var.ec2_name}a_eth3"
+  }
+}
+
 resource "aws_network_interface_attachment" "ac_sbc1_eth3" {
   count                = var.ac_sbc_eth3_enable ? 1 : 0
   instance_id          = aws_instance.ac_sbc1.id
-  network_interface_id = aws_network_interface.ac_sbc1_eth3[0].id
+  network_interface_id = (var.ac_sbc1_eth3_ip == "" && var.ac_sbc_eth3_ip == "") ? aws_network_interface.ac_sbc1_eth3_dhcp[0].id : aws_network_interface.ac_sbc1_eth3_static[0].id
   device_index         = 3
 }
+
 
 resource "aws_eip" "ac_sbc_eth3_dynamic" {
   count = var.ac_sbc_eth3_enable && var.ac_sbc_eth3_public_enable && var.ac_sbc_eth3_public_ip == "" ? 1 : 0
@@ -142,11 +219,11 @@ resource "aws_eip" "ac_sbc_eth3_dynamic" {
 
 resource "aws_eip_association" "ac_sbc_eth3" {
   count = var.ac_sbc_eth3_enable && var.ac_sbc_eth3_public_enable && (
-  var.ac_sbc_eth3_public_ip != "" || length(aws_eip.ac_sbc_eth3_dynamic) > 0) ? 1 : 0
+  var.ac_sbc_eth3_public_ip != "" && length(aws_eip.ac_sbc_eth3_dynamic) > 0) ? 1 : 0
   allocation_id        = var.ac_sbc_eth3_public_ip != "" ? var.ac_sbc_eth3_public_ip : aws_eip.ac_sbc_eth3_dynamic[0].id
-  network_interface_id = aws_network_interface.ac_sbc1_eth3[0].id
-  private_ip_address   = aws_network_interface.ac_sbc1_eth3[0].private_ip_list[1]
-  depends_on           = [aws_network_interface.ac_sbc1_eth3]
+  network_interface_id = (var.ac_sbc1_eth3_ip == "" && var.ac_sbc_eth3_ip == "") ? aws_network_interface.ac_sbc1_eth3_dhcp[0].id : aws_network_interface.ac_sbc1_eth3_static[0].id
+  private_ip_address   = (var.ac_sbc1_eth3_ip == "" && var.ac_sbc_eth3_ip == "") ? aws_network_interface.ac_sbc1_eth3_dhcp[0].private_ip_list[1] : aws_network_interface.ac_sbc1_eth3_static[0].private_ip_list[1]
+  depends_on           = [aws_network_interface_attachment.ac_sbc1_eth3]
 }
 
 
@@ -179,7 +256,7 @@ resource "aws_instance" "ac_sbc2" {
   key_name             = var.ac_sbc_key
   iam_instance_profile = var.ac_sbc_instance_profile_name
   primary_network_interface {
-    network_interface_id = aws_network_interface.ac_sbc2_eth0.id
+    network_interface_id = var.ac_sbc2_eth0_ip == "" ? aws_network_interface.ac_sbc2_eth0_dhcp[0].id : aws_network_interface.ac_sbc2_eth0_static[0].id
   }
   metadata_options {
     http_endpoint               = "enabled"
@@ -212,7 +289,7 @@ resource "aws_instance" "ac_sbc2" {
   user_data_base64 = base64encode(
     join("\n", [
       "#ini-file",
-      "HARemoteAddress = '${aws_network_interface.ac_sbc1_eth0.private_ip}",
+      "HARemoteAddress = '${var.ac_sbc1_eth0_ip == "" ? aws_network_interface.ac_sbc1_eth0_dhcp[0].private_ip : aws_network_interface.ac_sbc1_eth0_static[0].private_ip}'",
       "HAPriority = 1",
       "HAUnitIdName = '${var.ec2_name}b'",
       "#network_layout=2",
@@ -224,10 +301,24 @@ resource "aws_instance" "ac_sbc2" {
   }
 }
 
-
-resource "aws_network_interface" "ac_sbc2_eth0" {
+# Eth0 DHCP-based ENI (no declared IPs)
+resource "aws_network_interface" "ac_sbc2_eth0_dhcp" {
+  count    = var.ac_sbc2_eth0_ip == "" ? 1 : 0
   subnet_id = var.ac_sbc_eth0_subnet_id
+  security_groups   = [aws_security_group.sg_ac_sbc_ha.id]
+  source_dest_check = true
+  lifecycle {
+    ignore_changes = [private_ips]
+  }
+  tags = {
+    Name = "interface_${var.ec2_name}b_eth0"
+  }
+}
 
+# Eth0 Static-IP ENI (IP declared)
+resource "aws_network_interface" "ac_sbc2_eth0_static" {
+  count    = var.ac_sbc2_eth0_ip != "" ? 1 : 0
+  subnet_id = var.ac_sbc_eth0_subnet_id
   private_ips       = [var.ac_sbc2_eth0_ip]
   security_groups   = [aws_security_group.sg_ac_sbc_ha.id]
   source_dest_check = true
@@ -236,53 +327,110 @@ resource "aws_network_interface" "ac_sbc2_eth0" {
   }
 }
 
-resource "aws_network_interface" "ac_sbc2_eth1" {
-  subnet_id               = var.ac_sbc_eth1_subnet_id
-  private_ip_list_enabled = true
-  private_ip_list         = [var.ac_sbc2_eth1_ip]
-  security_groups         = [aws_security_group.sg_ac_sbc_oam.id]
-  source_dest_check       = true
+
+# Eth1 DHCP-based ENI (no declared IPs)
+resource "aws_network_interface" "ac_sbc2_eth1_dhcp" {
+  count    = (var.ac_sbc2_eth1_ip == "" && var.ac_sbc_eth1_ip == "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth1_subnet_id
+  security_groups   = [aws_security_group.sg_ac_sbc_oam.id]
+  source_dest_check = true
+  lifecycle {
+    ignore_changes = [private_ips]
+  }
   tags = {
-    Name   = "interface_${var.ec2_name}b_eth1"
+    Name = "interface_${var.ec2_name}b_eth1"
   }
 }
+
+# Eth1 Static-IP ENI (both IPs declared)
+resource "aws_network_interface" "ac_sbc2_eth1_static" {
+  count    = (var.ac_sbc2_eth1_ip != "" && var.ac_sbc_eth1_ip != "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth1_subnet_id
+  private_ip_list_enabled = true
+  private_ip_list = [var.ac_sbc2_eth1_ip]
+  security_groups   = [aws_security_group.sg_ac_sbc_oam.id]
+  source_dest_check = true
+  tags = {
+    Name = "interface_${var.ec2_name}b_eth1"
+  }
+}
+
 resource "aws_network_interface_attachment" "ac_sbc2_eth1" {
   instance_id          = aws_instance.ac_sbc2.id
-  network_interface_id = aws_network_interface.ac_sbc2_eth1.id
+  network_interface_id = (var.ac_sbc2_eth1_ip == "" && var.ac_sbc_eth1_ip == "") ? aws_network_interface.ac_sbc2_eth1_dhcp[0].id : aws_network_interface.ac_sbc2_eth1_static[0].id
   device_index         = 1
 }
 
-resource "aws_network_interface" "ac_sbc2_eth2" {
-  subnet_id               = var.ac_sbc_eth2_subnet_id
-  private_ip_list_enabled = true
-  private_ip_list         = [var.ac_sbc2_eth2_ip]
-  security_groups         = [aws_security_group.sg_ac_sbc_voip_internal.id]
-  source_dest_check       = true
+
+# Eth2 DHCP-based ENI (no declared IPs)
+resource "aws_network_interface" "ac_sbc2_eth2_dhcp" {
+  count    = (var.ac_sbc2_eth2_ip == "" && var.ac_sbc_eth2_ip == "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth2_subnet_id
+  security_groups   = [aws_security_group.sg_ac_sbc_voip_internal.id]
+  source_dest_check = true
+  lifecycle {
+    ignore_changes = [private_ips]
+  }
   tags = {
-    Name   = "interface_${var.ec2_name}b_eth2"
+    Name = "interface_${var.ec2_name}b_eth2"
   }
 }
+
+# Eth2 Static-IP ENI (both IPs declared)
+resource "aws_network_interface" "ac_sbc2_eth2_static" {
+  count    = (var.ac_sbc2_eth2_ip != "" && var.ac_sbc_eth2_ip != "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth2_subnet_id
+  private_ip_list_enabled = true
+  private_ip_list = [var.ac_sbc2_eth2_ip]
+  security_groups   = [aws_security_group.sg_ac_sbc_voip_internal.id]
+  source_dest_check = true
+  tags = {
+    Name = "interface_${var.ec2_name}b_eth2"
+  }
+}
+
 resource "aws_network_interface_attachment" "ac_sbc2_eth2" {
   instance_id          = aws_instance.ac_sbc2.id
-  network_interface_id = aws_network_interface.ac_sbc2_eth2.id
+  network_interface_id = (var.ac_sbc2_eth2_ip == "" && var.ac_sbc_eth2_ip == "") ? aws_network_interface.ac_sbc2_eth2_dhcp[0].id : aws_network_interface.ac_sbc2_eth2_static[0].id
   device_index         = 2
 }
 
-resource "aws_network_interface" "ac_sbc2_eth3" {
-  count                   = var.ac_sbc_eth3_enable ? 1 : 0
-  subnet_id               = var.ac_sbc_eth3_subnet_id
-  private_ip_list_enabled = true
-  private_ip_list         = [var.ac_sbc2_eth3_ip]
-  security_groups         = [aws_security_group.sg_ac_sbc_voip_external[0].id]
-  source_dest_check       = true
+
+
+
+
+# Eth3 DHCP-based ENI (no declared IPs)
+resource "aws_network_interface" "ac_sbc2_eth3_dhcp" {
+  count    = (var.ac_sbc_eth3_enable == true && var.ac_sbc2_eth3_ip == "" && var.ac_sbc_eth3_ip == "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth3_subnet_id
+  security_groups   = [aws_security_group.sg_ac_sbc_voip_external[0].id]
+  source_dest_check = true
+  lifecycle {
+    ignore_changes = [private_ips]
+  }
   tags = {
     Name = "interface_${var.ec2_name}b_eth3"
   }
 }
+
+# Eth3 Static-IP ENI (both IPs declared)
+resource "aws_network_interface" "ac_sbc2_eth3_static" {
+  count    = (var.ac_sbc_eth3_enable == true && var.ac_sbc2_eth3_ip != "" && var.ac_sbc_eth3_ip != "") ? 1 : 0
+  subnet_id = var.ac_sbc_eth3_subnet_id
+  private_ip_list_enabled = true
+  private_ip_list = [var.ac_sbc2_eth3_ip]
+  security_groups   = [aws_security_group.sg_ac_sbc_voip_external[0].id]
+  source_dest_check = true
+  tags = {
+    Name = "interface_${var.ec2_name}b_eth3"
+  }
+}
+
+
 resource "aws_network_interface_attachment" "ac_sbc2_eth3" {
   count                = var.ac_sbc_eth3_enable ? 1 : 0
   instance_id          = aws_instance.ac_sbc2.id
-  network_interface_id = aws_network_interface.ac_sbc2_eth3[0].id
+  network_interface_id = (var.ac_sbc2_eth3_ip == "" && var.ac_sbc_eth3_ip == "") ? aws_network_interface.ac_sbc2_eth3_dhcp[0].id : aws_network_interface.ac_sbc2_eth3_static[0].id
   device_index         = 3
 }
 
